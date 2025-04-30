@@ -1,20 +1,69 @@
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 
 public class ClientXat {
+    private Socket socket;
+    private ObjectOutputStream out;
+    private ObjectInputStream in;
+    
+    public void connecta() throws IOException {
+        socket = new Socket("localhost", 9999);
+        out = new ObjectOutputStream(socket.getOutputStream());
+        in = new ObjectInputStream(socket.getInputStream());
+        System.out.println("Client connectat a localhost:9999");
+        System.out.println("Flux d'entrada i sortida creat.");
+    }
+    
+    public void enviarMissatge(String missatge) throws IOException {
+        out.writeObject(missatge);
+        out.flush();
+        System.out.println("Enviant missatge: " + missatge);
+    }
+    
+    public void tancarClient() throws IOException {
+        if (out != null) out.close();
+        if (in != null) in.close();
+        if (socket != null) socket.close();
+        System.out.println("Client tancat.");
+    }
+    
     public static void main(String[] args) {
+        ClientXat client = new ClientXat();
+        Scanner scanner = new Scanner(System.in);
+        
         try {
-            Socket socket = new Socket("localhost", 9999);
-            System.out.println("Client connectat");
+            client.connecta();
             
-            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            FilLectorCX fil = new FilLectorCX(client.in);
+            Thread thread = new Thread(fil);
+            thread.start();
+            System.out.println("Fil de lectura iniciat");
+
+            System.out.print("Rebut: Escriu el teu nom: ");
+            String nom = scanner.nextLine();
+            client.enviarMissatge(nom);
             
-            out.writeObject("Hola servidor!");
-            System.out.println("Missatge enviat");
+            String missatge;
+            while (true) {
+                System.out.print("Missatge ('sortir' per tancar): ");
+                missatge = scanner.nextLine();
+                client.enviarMissatge(missatge);
+                
+                if (missatge.equals("sortir")) {
+                    break;
+                }
+            }
             
-            socket.close();
-        } catch (IOException e) {
+            scanner.close();
+        } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            try {
+                client.tancarClient();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
